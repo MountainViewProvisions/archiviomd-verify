@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "archiviomd-verify"
-version = "1.0.0"
+version = "1.0.3"
 description = "Standalone verification tool for ArchivioMD and ArchivioID cryptographic post signing"
 readme = "README.md"
 license = { text = "MIT" }
