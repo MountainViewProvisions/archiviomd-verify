@@ -1,53 +1,32 @@
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+name: Publish to PyPI
 
-[project]
-name = "archiviomd-verify"
-version = "1.0.0"
-description = "Standalone verification tool for ArchivioMD and ArchivioID cryptographic post signing"
-readme = "README.md"
-license = { text = "MIT" }
-requires-python = ">=3.8"
-authors = [
-  { name = "Mountain View Provisions", email = "contact@mountainviewprovisions.com" }
-]
-keywords = [
-  "archiviomd", "content verification", "cryptography",
-  "ed25519", "digital signatures", "wordpress", "integrity"
-]
-classifiers = [
-  "Development Status :: 5 - Production/Stable",
-  "Environment :: Console",
-  "Intended Audience :: Developers",
-  "Intended Audience :: Information Technology",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Topic :: Security :: Cryptography",
-  "Topic :: Internet :: WWW/HTTP",
-  "Topic :: Utilities",
-]
-dependencies = [
-  "cryptography>=41.0.0,<47",
-]
+on:
+  push:
+    tags:
+      - "v*"
 
-[project.optional-dependencies]
-slhdsa = ["pyspx>=0.5.0"]
-dev = ["build", "twine"]
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
 
-[project.urls]
-Homepage       = "https://mountainviewprovisions.com/ArchivioMD"
-Repository     = "https://github.com/mountainviewprovisions/archiviomd-verify"
-"Bug Tracker"  = "https://github.com/mountainviewprovisions/archiviomd-verify/issues"
+    steps:
+      - uses: actions/checkout@v4
 
-[project.scripts]
-archiviomd-verify = "archiviomd_verify.cli:main"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build
+        run: python -m build
+
+      - name: Check
+        run: twine check dist/*
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
