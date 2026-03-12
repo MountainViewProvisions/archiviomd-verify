@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArchivioMD Verifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c0f;
+    --surface:   #111418;
+    --border:    #1e2530;
+    --border2:   #2a3342;
+    --text:      #c8d4e0;
+    --dim:       #5a6a7a;
+    --green:     #3ddc84;
+    --red:       #ff4d6a;
+    --yellow:    #f5c842;
+    --cyan:      #4dd9ff;
+    --accent:    #5b8fff;
+    --mono:      'JetBrains Mono', monospace;
+    --display:   'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── Header ── */
+  .header { margin-bottom: 40px; }
+
+  .header-top {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 6px;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    border: 1px solid var(--border2);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+
+  .tagline {
+    color: var(--dim);
+    font-size: 12px;
+  }
+
+  /* ── Input form ── */
+  .input-row {
+    display: flex; gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .url-input::placeholder { color: var(--dim); }
+  .url-input:focus { border-color: var(--accent); }
+
+  .btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 10px 20px;
+    white-space: nowrap;
+    transition: opacity .15s, transform .1s;
+    letter-spacing: 0.04em;
+  }
+  .btn:hover { opacity: .88; }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── Results panel ── */
+  #results { display: none; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .panel-header:hover { background: rgba(255,255,255,.02); }
+
+  .panel-title {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #e0eaf5;
+    flex: 1;
+  }
+
+  .panel-status {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+
+  .status-pass   { color: var(--green); }
+  .status-fail   { color: var(--red); }
+  .status-warn   { color: var(--yellow); }
+  .status-skip   { color: var(--dim); }
+  .status-running { color: var(--cyan); }
+
+  .panel-chevron {
+    color: var(--dim);
+    font-size: 10px;
+    transition: transform .2s;
+  }
+  .panel.open .panel-chevron { transform: rotate(90deg); }
+
+  .panel-body {
+    display: none;
+    padding: 12px 16px;
+  }
+  .panel.open .panel-body { display: block; }
+
+  /* ── Log lines ── */
+  .log { list-style: none; }
+  .log li {
+    padding: 2px 0;
+    display: flex; gap: 10px;
+    line-height: 1.6;
+  }
+  .log li .icon { flex-shrink: 0; width: 14px; text-align: center; }
+
+  .l-ok   { color: var(--green); }
+  .l-fail { color: var(--red); }
+  .l-warn { color: var(--yellow); }
+  .l-info { color: var(--cyan); }
+  .l-dim  { color: var(--dim); }
+  .l-dim .icon { color: var(--dim); }
+
+  /* ── Summary bar ── */
+  .summary {
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 12px;
+    letter-spacing: 0.03em;
+  }
+  .summary.pass { background: rgba(61,220,132,.08); border: 1px solid rgba(61,220,132,.25); color: var(--green); }
+  .summary.fail { background: rgba(255,77,106,.08); border: 1px solid rgba(255,77,106,.25); color: var(--red); }
+  .summary.running { background: rgba(77,217,255,.05); border: 1px solid rgba(77,217,255,.2); color: var(--cyan); }
+
+  .summary-icon { font-size: 18px; }
+
+  /* ── Meta info ── */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 14px;
+    font-size: 12px;
+  }
+  .meta-key { color: var(--dim); }
+  .meta-val { color: var(--text); word-break: break-all; }
+
+  /* ── Spinner ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--cyan);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+  }
+
+  /* ── CORS notice ── */
+  .cors-notice {
+    background: rgba(245,200,66,.05);
+    border: 1px solid rgba(245,200,66,.2);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--yellow);
+    margin-bottom: 12px;
+    display: none;
+  }
+
+  /* ── footer ── */
+  .footer {
+    margin-top: 48px;
+    color: var(--dim);
+    font-size: 11px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+  }
+
+  .footer a { color: var(--dim); text-decoration: none; }
+  .footer a:hover { color: var(--text); }
+
+  .layer-note {
+    font-size: 11px;
+    color: var(--dim);
+    font-style: italic;
+    margin-top: 6px;
+  }
+
+  /* ── Pulse animation for running ── */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .pulse { animation: pulse 1.2s ease-in-out infinite; }
+
+  a.link { color: var(--accent); text-decoration: none; }
+  a.link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="header">
+    <div class="header-top">
+      <div class="logo">Archivio<span>MD</span></div>
+      <div class="badge">Verifier</div>
+    </div>
+    <div class="tagline">Browser-based cryptographic verification · Layers 1–10 · No installation required</div>
+  </header>
+
+  <div class="input-row">
+    <input class="url-input" id="urlInput" type="url"
+           placeholder="https://example.com/signed-post"
+           autocomplete="off" spellcheck="false">
+    <button class="btn" id="verifyBtn" onclick="startVerify()">Verify</button>
+  </div>
+
+  <div class="cors-notice" id="corsNotice">
+    ⚠ CORS error — the site's WAF or security plugin may be blocking REST API access.
+    Use the Python CLI for a CORS-free verification: <code>python3 archiviomd-verify.py &lt;url&gt;</code>
+  </div>
+
+  <div id="results"></div>
+
+  <footer class="footer">
+    <span>archiviomd-verify · browser edition</span>
+    <span>
+      <a class="link" href="https://pypi.org/project/archiviomd-verify/" target="_blank">PyPI</a>
+      &nbsp;·&nbsp;
+      Full offline verification (SLH-DSA, RSA, CMS, OpenPGP): use the Python CLI
+    </span>
+  </footer>
+
+</div>
+
+<script>
+// ── Utilities ──────────────────────────────────────────────────────────────
+
+const $  = id => document.getElementById(id);
+const hex = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+const b64decode = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const b64urldecode = s => b64decode(s.replace(/-/g,'+').replace(/_/g,'/').padEnd(s.length + (4 - s.length%4)%4, '='));
+const enc = new TextEncoder();
+
+function buildPAE(payloadType, payload) {
+  const ptBytes = enc.encode(payloadType);
+  const prefix  = enc.encode(`DSSEv1 ${ptBytes.length} `);
+  const mid     = enc.encode(` ${payload.length} `);
+  const out = new Uint8Array(prefix.length + ptBytes.length + mid.length + payload.length);
+  let i = 0;
+  out.set(prefix, i); i += prefix.length;
+  out.set(ptBytes, i); i += ptBytes.length;
+  out.set(mid, i); i += mid.length;
+  out.set(payload, i);
+  return out;
+}
+
+async function sha256hex(data) {
+  const buf = typeof data === 'string' ? enc.encode(data) : data;
+  return hex(await crypto.subtle.digest('SHA-256', buf));
+}
+
+function stripHtml(s) { return s.replace(/<[^>]+>/g,''); }
+function normalize(s) {
+  return s.replace(/\r\n/g,'\n').replace(/\r/g,'\n')
+          .split('\n').map(l=>l.trim()).join('\n').trim();
+}
+
+function canonicalPost(postId, title, slug, content, dateGmt) {
+  return ['mdsm-ed25519-v1', String(postId),
+          normalize(title), slug.trim(),
+          normalize(stripHtml(content)), dateGmt.trim()].join('\n');
+}
+
+function canonicalContent(postId, authorId, content) {
+  const c = content.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const norm = c.split('\n').map(l=>l.trim()).join('\n').trim();
+  return `post_id:${postId}\nauthor_id:${authorId}\ncontent:\n${norm}`;
+}
+
+// ── Panel builder ──────────────────────────────────────────────────────────
+
+function makePanel(id, title) {
+  const el = document.createElement('div');
+  el.className = 'panel';
+  el.id = 'panel-' + id;
+  el.innerHTML = `
+    <div class="panel-header" onclick="togglePanel('${id}')">
+      <span class="panel-title">${title}</span>
+      <span class="panel-status status-running pulse" id="status-${id}">
+        <span class="spinner"></span>
+      </span>
+      <span class="panel-chevron">▶</span>
+    </div>
+    <div class="panel-body">
+      <ul class="log" id="log-${id}"></ul>
+      <div class="layer-note" id="note-${id}" style="display:none"></div>
+    </div>`;
+  return el;
+}
+
+function togglePanel(id) {
+  document.getElementById('panel-' + id).classList.toggle('open');
+}
+
+function setStatus(id, type, text) {
+  const el = $('status-' + id);
+  el.className = 'panel-status status-' + type;
+  el.innerHTML = text;
+}
+
+function addLog(id, type, icon, text) {
+  const li = document.createElement('li');
+  li.className = 'l-' + type;
+  li.innerHTML = `<span class="icon">${icon}</span><span>${text}</span>`;
+  $('log-' + id).appendChild(li);
+}
+
+function setNote(id, text) {
+  const el = $('note-' + id);
+  el.textContent = text;
+  el.style.display = '';
+}
+
+function ok(id, t)   { addLog(id,'ok','✓',t); }
+function fail(id, t) { addLog(id,'fail','✗',t); }
+function warn(id, t) { addLog(id,'warn','⚠',t); }
+function info(id, t) { addLog(id,'info','·',t); }
+function dim(id, t)  { addLog(id,'dim','·',t); }
+
+// ── DoH ───────────────────────────────────────────────────────────────────
+
+async function dohLookup(name, rtype='TXT') {
+  try {
+    const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${rtype}`,
+                          { headers: { Accept: 'application/dns-json' } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d.Answer || []).map(a => a.data || '');
+  } catch { return null; }
+}
+
+// ── Rekor ─────────────────────────────────────────────────────────────────
+
+async function fetchRekorEntry(logIndex) {
+  try {
+    const r = await fetch(`https://rekor.sigstore.dev/api/v1/log/entries?logIndex=${logIndex}`);
+    if (!r.ok) return null;
+    const data = await r.json();
+    const uuid = Object.keys(data)[0];
+    const entry = data[uuid];
+    let artifactHash = null, customProps = {}, inclusionProof = false, integratedTime = null;
+    try {
+      const body = JSON.parse(atob(entry.body));
+      artifactHash = body.spec?.data?.hash?.value || null;
+      customProps  = body.spec?.customProperties || {};
+    } catch {}
+    integratedTime = entry.integratedTime;
+    inclusionProof = !!(entry.verification?.inclusionProof);
+    return { uuid, artifactHash, customProps, integratedTime, inclusionProof };
+  } catch { return null; }
+}
+
+// ── Crypto helpers (Web Crypto API) ───────────────────────────────────────
+
+async function verifyEd25519(messageBytes, sigHex, pubkeyHex) {
+  try {
+    const pub = await crypto.subtle.importKey(
+      'raw', new Uint8Array(pubkeyHex.match(/.{2}/g).map(b=>parseInt(b,16))),
+      { name: 'Ed25519' }, false, ['verify']);
+    const sig = new Uint8Array(sigHex.match(/.{2}/g).map(b=>parseInt(b,16)));
+    return await crypto.subtle.verify({ name: 'Ed25519' }, pub, sig, messageBytes);
+  } catch { return null; }
+}
+
+async function verifyEd25519DSSE(envelope, pubkeyHex) {
+  try {
+    const payload = b64decode(envelope.payload);
+    const pae = buildPAE(envelope.payloadType || '', payload);
+    for (const s of (envelope.signatures || [])) {
+      if ((s.alg || 'ed25519').toLowerCase() !== 'ed25519') continue;
+      const result = await verifyEd25519(pae, '', ''); // handled below
+      const sig = b64decode(s.sig || '');
+      const pub = await crypto.subtle.importKey(
+        'raw', new Uint8Array(pubkeyHex.match(/.{2}/g).map(b=>parseInt(b,16))),
+        { name: 'Ed25519' }, false, ['verify']);
+      const ok = await crypto.subtle.verify({ name: 'Ed25519' }, pub, sig, pae);
+      if (ok) return true;
+    }
+  } catch {}
+  return false;
+}
+
+async function verifyEcdsaDSSE(envelope, certPem) {
+  try {
+    // Extract the raw public key bytes from the PEM cert's SubjectPublicKeyInfo
+    const b64 = certPem.replace(/-----[^-]+-----/g,'').replace(/\s/g,'');
+    const der = b64decode(b64);
+    // Import as SPKI
+    const pub = await crypto.subtle.importKey(
+      'spki', der.buffer,
+      { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const payload = b64decode(envelope.payload);
+    const pae = buildPAE(envelope.payloadType || '', payload);
+    for (const s of (envelope.signatures || [])) {
+      if (!s.alg || !s.alg.toLowerCase().includes('ecdsa')) continue;
+      const sig = b64decode(s.sig || '');
+      const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pub, sig, pae);
+      if (ok) return true;
+    }
+  } catch {}
+  return false;
+}
+
+const HASH_ALGO_MAP = {
+  'sha256':     'SHA-256',
+  'sha384':     'SHA-384',
+  'sha512':     'SHA-512',
+  'sha3-256':   null, // not in Web Crypto
+  'sha3-512':   null,
+  'blake2b':    null,
+  'sha512-256': null,
+};
+
+async function verifyContentHash(canonical, expectedHex, algorithm) {
+  const algoName = HASH_ALGO_MAP[algorithm.toLowerCase()];
+  if (!algoName) return null; // unsupported in WebCrypto
+  const buf = await crypto.subtle.digest(algoName, enc.encode(canonical));
+  return hex(buf).toLowerCase() === expectedHex.toLowerCase();
+}
+
+// ── Main verify ───────────────────────────────────────────────────────────
+
+let running = false;
+
+async function startVerify() {
+  if (running) return;
+  const url = $('urlInput').value.trim();
+  if (!url) { $('urlInput').focus(); return; }
+
+  running = true;
+  $('verifyBtn').disabled = true;
+  $('corsNotice').style.display = 'none';
+
+  const res = $('results');
+  res.innerHTML = '';
+  res.style.display = 'block';
+
+  // Summary bar (running)
+  const sumEl = document.createElement('div');
+  sumEl.className = 'summary running';
+  sumEl.id = 'summary';
+  sumEl.innerHTML = '<span class="summary-icon"><span class="spinner"></span></span> <span id="summary-text">Fetching verification data…</span>';
+  res.appendChild(sumEl);
+
+  const origin = new URL(url).origin;
+  const restUrl = `${origin}/wp-json/archiviomd/v1/verify?url=${encodeURIComponent(url)}`;
+
+  // Fetch REST
+  let data;
+  try {
+    const r = await fetch(restUrl);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    data = await r.json();
+  } catch(e) {
+    sumEl.className = 'summary fail';
+    sumEl.innerHTML = `<span class="summary-icon">✗</span> <span>Could not fetch REST endpoint: ${e.message}</span>`;
+    if (e.message.toLowerCase().includes('cors') || e.message === 'Failed to fetch') {
+      $('corsNotice').style.display = '';
+    }
+    running = false; $('verifyBtn').disabled = false;
+    return;
+  }
+
+  const postId    = data.post_id || 0;
+  const features  = (data.plugin || {}).features || {};
+  const canonical = data.canonical || {};
+  const anchors   = data.anchors   || {};
+  const pubKeys   = data.public_keys || {};
+
+  let failCount = 0;
+  let passCount = 0;
+
+  // ── Helper to resolve Ed25519 pubkey ──
+  async function resolveEd25519Pubkey() {
+    const direct = (data.ed25519 || {}).pub_key_hex;
+    if (direct) return direct;
+    const wkUrl = (data.ed25519 || {}).public_key_url
+               || (pubKeys.ed25519 || {}).well_known;
+    if (wkUrl) {
+      try {
+        const r = await fetch(wkUrl);
+        const t = (await r.text()).trim();
+        if (/^[0-9a-fA-F]{64}$/.test(t)) return t;
+      } catch {}
+    }
+    return null;
+  }
+
+  // ── 1. Post Info ──
+  const infoPanel = makePanel('info', '① Post Info');
+  res.appendChild(infoPanel);
+  togglePanel('info');
+  const active = Object.keys(features).filter(k=>features[k]);
+  info('info', `Post ID: ${postId}  ·  Type: ${data.post_type || 'post'}`);
+  if (active.length) dim('info', `Active features: ${active.join(', ')}`);
+  dim('info', `REST: ${restUrl}`);
+  setStatus('info', 'skip', '·');
+
+  // ── 2. Content Hash ──
+  const hpanel = makePanel('hash', '② Content Hash');
+  res.appendChild(hpanel);
+  {
+    const hd = data.hash || {};
+    if (hd.available) {
+      const algo   = hd.algorithm || 'sha256';
+      const hx     = hd.hash || '';
+      const hmac   = hd.hmac_mode || false;
+      const srvV   = hd.verified || false;
+      info('hash', `Algorithm: ${hd.algorithm_label || algo}`);
+      info('hash', `Hash: ${hx.slice(0,40)}${hx.length>40?'…':''}`);
+      if (srvV) ok('hash', 'Server-side content hash: VERIFIED');
+      else { fail('hash', 'Server-side content hash: NOT VERIFIED'); failCount++; }
+
+      if (hmac) {
+        warn('hash', 'HMAC mode — offline verification requires the ARCHIVIOMD_HMAC_KEY secret');
+        setStatus('hash', 'warn', srvV ? 'PASS (server)' : 'FAIL');
+      } else {
+        const cPostId   = canonical.post_id   || postId;
+        const cAuthorId = canonical.author_id || 0;
+        const cContent  = canonical.content   || '';
+        const canon = canonicalContent(cPostId, cAuthorId, cContent);
+        const algoMap = HASH_ALGO_MAP[algo.toLowerCase()];
+        if (algoMap) {
+          const computed = await (async()=>{
+            const buf = await crypto.subtle.digest(algoMap, enc.encode(canon));
+            return hex(buf).toLowerCase();
+          })();
+          if (computed === hx.toLowerCase()) {
+            ok('hash', `Content hash offline: VALID (${algo})`);
+            passCount++;
+            setStatus('hash', 'pass', 'PASS');
+          } else {
+            fail('hash', `Content hash offline: MISMATCH`);
+            failCount++;
+            setStatus('hash', 'fail', 'FAIL');
+          }
+        } else {
+          warn('hash', `${algo} not supported in Web Crypto — server result only`);
+          setStatus('hash', srvV ? 'pass' : 'fail', srvV ? 'PASS (server)' : 'FAIL');
+        }
+      }
+    } else {
+      info('hash', 'Content hash: not available for this post');
+      setStatus('hash', 'skip', '—');
+    }
+  }
+
+  // ── 3. Ed25519 ──
+  const ed25519Panel = makePanel('ed25519', '③ Ed25519 Signature');
+  res.appendChild(ed25519Panel);
+  {
+    const ed = data.ed25519 || {};
+    if (ed.available) {
+      const srvV = ed.verified || false;
+      info('ed25519', `Signed at: ${ed.signed_at || '—'}`);
+      if (ed.key_id) info('ed25519', `Key fingerprint: ${ed.key_id}`);
+      if (srvV) ok('ed25519', 'Server-side Ed25519: VERIFIED');
+      else warn('ed25519', 'Server-side Ed25519: not verified by server');
+
+      const pubkeyHex = await resolveEd25519Pubkey();
+      if (pubkeyHex) {
+        const fp = await sha256hex(new Uint8Array(pubkeyHex.match(/.{2}/g).map(b=>parseInt(b,16))));
+        if (ed.key_id && fp.toLowerCase() !== ed.key_id.toLowerCase()) {
+          warn('ed25519', `Key-ID mismatch! REST=${ed.key_id.slice(0,20)}… computed=${fp.slice(0,20)}…`);
+        }
+
+        const dsse = ed.dsse;
+        let result = null;
+        if (dsse && dsse.envelope) {
+          result = await verifyEd25519DSSE(dsse.envelope, pubkeyHex);
+          if (result === true)  { ok('ed25519', 'Ed25519 DSSE: VALID (offline)'); passCount++; setStatus('ed25519','pass','PASS'); }
+          else                  { fail('ed25519', 'Ed25519 DSSE: INVALID'); failCount++; setStatus('ed25519','fail','FAIL'); }
+        } else if (ed.signature_hex) {
+          const msg = canonicalPost(postId, canonical.title||'', canonical.slug||'',
+                                    canonical.content||'', canonical.date_gmt||'');
+          result = await verifyEd25519(enc.encode(msg), ed.signature_hex, pubkeyHex);
+          if (result === true)  { ok('ed25519', 'Ed25519 bare: VALID (offline)'); passCount++; setStatus('ed25519','pass','PASS'); }
+          else if (result===false){ fail('ed25519', 'Ed25519 bare: INVALID'); failCount++; setStatus('ed25519','fail','FAIL'); }
+          else                  { warn('ed25519', 'Ed25519: verification unavailable'); setStatus('ed25519','warn','⚠'); }
+        }
+      } else {
+        warn('ed25519', 'Could not resolve Ed25519 public key');
+        setStatus('ed25519', 'warn', '⚠');
+      }
+    } else {
+      info('ed25519', 'Ed25519 not enabled or no signature');
+      setStatus('ed25519', 'skip', '—');
+    }
+  }
+
+  // ── 4. SLH-DSA ──
+  const slhPanel = makePanel('slhdsa', '④ SLH-DSA (Post-Quantum)');
+  res.appendChild(slhPanel);
+  {
+    const slh = data.slhdsa || {};
+    if (slh.available) {
+      info('slhdsa', `Parameter set: ${slh.param || 'SLH-DSA-SHA2-128s'}`);
+      info('slhdsa', `Signed at: ${slh.signed_at || '—'}`);
+      if (slh.verified) ok('slhdsa', 'Server-side SLH-DSA: VERIFIED');
+      else warn('slhdsa', 'Server-side SLH-DSA: not verified by server');
+      warn('slhdsa', 'Offline SLH-DSA verification requires the Python CLI (pyspx)');
+      setNote('slhdsa', 'SLH-DSA (NIST FIPS 205) is not available in the Web Crypto API. Use: python3 archiviomd-verify.py <url>');
+      setStatus('slhdsa', slh.verified ? 'warn' : 'warn', slh.verified ? 'PASS (server)' : '⚠');
+    } else {
+      info('slhdsa', 'SLH-DSA not enabled or no signature');
+      setStatus('slhdsa', 'skip', '—');
+    }
+  }
+
+  // ── 5. ECDSA P-256 ──
+  const ecPanel = makePanel('ecdsa', '⑤ ECDSA P-256');
+  res.appendChild(ecPanel);
+  {
+    const ec = data.ecdsa || {};
+    if (ec.available) {
+      info('ecdsa', `Signed at: ${ec.signed_at || '—'}`);
+      if (ec.certificate_url) info('ecdsa', `Certificate: ${ec.certificate_url}`);
+      if (ec.verified) ok('ecdsa', 'Server-side ECDSA: VERIFIED');
+      else warn('ecdsa', 'Server-side ECDSA: not verified by server');
+
+      let certPem = null;
+      if (ec.certificate_url) {
+        try {
+          const r = await fetch(ec.certificate_url);
+          const t = await r.text();
+          if (t.includes('CERTIFICATE')) certPem = t;
+        } catch {}
+      }
+
+      if (certPem && ec.dsse) {
+        const result = await verifyEcdsaDSSE(ec.dsse, certPem);
+        if (result) { ok('ecdsa', 'ECDSA P-256 DSSE: VALID (offline)'); passCount++; setStatus('ecdsa','pass','PASS'); }
+        else        { fail('ecdsa', 'ECDSA P-256 DSSE: INVALID'); failCount++; setStatus('ecdsa','fail','FAIL'); }
+      } else if (!certPem && ec.certificate_url) {
+        warn('ecdsa', `Certificate not accessible (may be CORS-blocked)`);
+        setStatus('ecdsa', 'warn', '⚠');
+      } else {
+        setStatus('ecdsa', ec.verified ? 'pass' : 'warn', ec.verified ? 'PASS (server)' : '⚠');
+      }
+    } else {
+      info('ecdsa', 'ECDSA P-256 not enabled or no signature');
+      setStatus('ecdsa', 'skip', '—');
+    }
+  }
+
+  // ── 6. RSA ──
+  const rsaPanel = makePanel('rsa', '⑥ RSA Compatibility Signature');
+  res.appendChild(rsaPanel);
+  {
+    if (features.rsa) {
+      const wkUrl = `${origin}/.well-known/rsa-pubkey.pem`;
+      info('rsa', `Public key: ${wkUrl}`);
+      try {
+        const r = await fetch(wkUrl);
+        if (r.ok && (await r.text()).includes('PUBLIC KEY'))
+          ok('rsa', 'RSA public key accessible at /.well-known/rsa-pubkey.pem');
+        else warn('rsa', 'RSA public key not accessible');
+      } catch { warn('rsa', 'RSA public key fetch failed (CORS or unavailable)'); }
+      warn('rsa', 'Full RSA offline verification requires the Python CLI');
+      setNote('rsa', 'RSA PSS/PKCS1v15 offline verify: python3 archiviomd-verify.py <url>');
+      setStatus('rsa', 'warn', '⚠ CLI needed');
+    } else {
+      info('rsa', 'RSA not enabled on this site');
+      setStatus('rsa', 'skip', '—');
+    }
+  }
+
+  // ── 7. CMS / PKCS#7 ──
+  const cmsPanel = makePanel('cms', '⑦ CMS / PKCS#7');
+  res.appendChild(cmsPanel);
+  {
+    if (features.cms) {
+      info('cms', 'CMS/PKCS#7 signing enabled');
+      const cms = data.cms || {};
+      if (cms.verified) ok('cms', 'Server-side CMS: VERIFIED');
+      else warn('cms', 'Server-side CMS: not reported as verified by server');
+      warn('cms', 'CMS/PKCS#7 offline verification requires the Python CLI (openssl)');
+      setNote('cms', 'openssl cms -verify is not available in browsers. Use: python3 archiviomd-verify.py <url>');
+      setStatus('cms', 'warn', '⚠ CLI needed');
+    } else {
+      info('cms', 'CMS/PKCS#7 not enabled on this site');
+      setStatus('cms', 'skip', '—');
+    }
+  }
+
+  // ── 8. JSON-LD / W3C Data Integrity ──
+  const jldPanel = makePanel('jsonld', '⑧ JSON-LD / W3C Data Integrity');
+  res.appendChild(jldPanel);
+  {
+    if (features.jsonld) {
+      const didUrl = `${origin}/.well-known/did.json`;
+      info('jsonld', `DID document: ${didUrl}`);
+      try {
+        const r = await fetch(didUrl);
+        if (r.ok) {
+          const did = await r.json();
+          ok('jsonld', 'DID document accessible');
+          (did.verificationMethod || []).slice(0,3).forEach(m=>
+            dim('jsonld', `  ${m.id || '?'} [${m.type || '?'}]`)
+          );
+          setStatus('jsonld', 'pass', 'PASS'); passCount++;
+        } else throw new Error(`HTTP ${r.status}`);
+      } catch(e) {
+        warn('jsonld', `DID document not accessible: ${e.message}`);
+        setStatus('jsonld', 'warn', '⚠');
+      }
+    } else {
+      info('jsonld', 'JSON-LD not enabled on this site');
+      setStatus('jsonld', 'skip', '—');
+    }
+  }
+
+  // ── 9. Rekor Transparency Log ──
+  const rekorPanel = makePanel('rekor', '⑨ Rekor Transparency Log');
+  res.appendChild(rekorPanel);
+  {
+    const rekor = anchors.rekor || {};
+    if (rekor.available) {
+      const logIdx = rekor.log_index;
+      info('rekor', `Log index: ${logIdx}`);
+      info('rekor', `Anchored at: ${rekor.anchored_at || '—'}`);
+      if (rekor.lookup_url) dim('rekor', `Lookup: ${rekor.lookup_url}`);
+
+      const entry = await fetchRekorEntry(logIdx);
+      if (entry) {
+        ok('rekor', 'Rekor entry found in transparency log');
+        if (entry.artifactHash) info('rekor', `Artifact hash: ${entry.artifactHash}`);
+        if (entry.integratedTime) {
+          const t = new Date(entry.integratedTime * 1000);
+          info('rekor', `Integrated: ${t.toUTCString()}`);
+        }
+        if (entry.inclusionProof) { ok('rekor', 'Inclusion proof present'); passCount++; setStatus('rekor','pass','PASS'); }
+        else { warn('rekor', 'Inclusion proof absent from entry'); setStatus('rekor','warn','⚠'); }
+        const cp = entry.customProps;
+        if (cp['archiviomd.site_url']) dim('rekor', `site_url: ${cp['archiviomd.site_url']}`);
+        if (cp['archiviomd.pubkey_fingerprint']) dim('rekor', `pubkey_fingerprint: ${cp['archiviomd.pubkey_fingerprint'].slice(0,40)}…`);
+      } else {
+        fail('rekor', `Could not fetch Rekor entry ${logIdx}`); failCount++;
+        setStatus('rekor','fail','FAIL');
+      }
+    } else {
+      info('rekor', 'No Rekor anchor for this post');
+      setStatus('rekor', 'skip', '—');
+    }
+  }
+
+  // ── 10. DANE DNS ──
+  const danePanel = makePanel('dane', '⑩ DANE DNS Corroboration');
+  res.appendChild(danePanel);
+  {
+    if (features.dane) {
+      const domain = new URL(url).hostname;
+      info('dane', `Domain: ${domain}`);
+      const checks = [
+        ['ed25519', '_archiviomd._domainkey'],
+        ['slhdsa',  '_archiviomd-slhdsa._domainkey'],
+        ['ecdsa',   '_archiviomd-ecdsa._domainkey'],
+        ['rsa',     '_archiviomd-rsa._domainkey'],
+      ];
+      let daneOk = true;
+      for (const [algo, sub] of checks) {
+        const name = `${sub}.${domain}`;
+        const ans  = await dohLookup(name, 'TXT');
+        if (ans === null) { warn('dane', `TXT [${algo}]: DNS lookup error`); daneOk=false; }
+        else if (ans.length) {
+          ok('dane', `TXT [${algo}] ${name}`);
+          dim('dane', `  ${ans.join(' ').replace(/"/g,'').slice(0,90)}`);
+        } else {
+          dim('dane', `TXT [${algo}]: not published — ${name}`);
+        }
+      }
+      const tlsa = await dohLookup(`_443._tcp.${domain}`, 'TLSA');
+      if (tlsa && tlsa.length) {
+        ok('dane', `TLSA _443._tcp.${domain}`);
+        tlsa.slice(0,3).forEach(v=>dim('dane',`  ${v}`));
+      } else dim('dane','TLSA: not published');
+
+      try {
+        const discUrl = `${origin}/.well-known/archiviomd-dns.json`;
+        const r = await fetch(discUrl);
+        if (r.ok) ok('dane', `Discovery JSON: ${discUrl}`);
+        else dim('dane', `Discovery JSON: not accessible`);
+      } catch { dim('dane', 'Discovery JSON: not accessible'); }
+
+      passCount++;
+      setStatus('dane', 'pass', 'PASS');
+    } else {
+      info('dane', 'DANE corroboration not enabled on this site');
+      setStatus('dane', 'skip', '—');
+    }
+  }
+
+  // ── Summary ──
+  const hasFail = failCount > 0;
+  sumEl.className = `summary ${hasFail ? 'fail' : 'pass'}`;
+  $('summary-text').textContent = hasFail
+    ? `${failCount} check${failCount>1?'s':''} FAILED · ${passCount} passed`
+    : `All performed checks passed · ${passCount} check${passCount!==1?'s':''} verified`;
+  sumEl.querySelector('.summary-icon').textContent = hasFail ? '✗' : '✓';
+
+  // Move summary to top of results
+  res.insertBefore(sumEl, res.firstChild);
+
+  running = false;
+  $('verifyBtn').disabled = false;
+}
+
+// Allow Enter key in input
+$('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') startVerify(); });
+</script>
+</body>
+</html>
