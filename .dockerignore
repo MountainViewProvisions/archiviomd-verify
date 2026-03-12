@@ -1,0 +1,9 @@
+.git
+.github
+*.md
+__pycache__
+*.pyc
+*.pyo
+dist/
+build/
+*.egg-info/
