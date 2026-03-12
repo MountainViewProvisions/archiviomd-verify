@@ -34,6 +34,10 @@ Or
 ```
 pipx install -r requirements.txt
 ```
+Or use the docker file
+```
+docker pull ghcr.io/mountainviewprovisions/archiviomd-verify:v1.0.4
+```
 
 This installs `cryptography`, which enables offline Ed25519, ECDSA P-256, and RSA verification. Everything else is Python stdlib.
 
