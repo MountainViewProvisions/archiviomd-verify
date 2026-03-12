@@ -30,6 +30,10 @@ Place `archiviomd-verify.py`, `archiviomd-verify.html`, and `requirements.txt` i
 ```
 pip install -r requirements.txt
 ```
+Or 
+```
+pipx install -r requirements.txt
+```
 
 This installs `cryptography`, which enables offline Ed25519, ECDSA P-256, and RSA verification. Everything else is Python stdlib.
 
