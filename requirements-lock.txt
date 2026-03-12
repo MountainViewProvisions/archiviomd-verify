@@ -1,0 +1,18 @@
+# archiviomd-verify — locked dependency versions for reproducible installs
+#
+# Use this file in CI or any environment where reproducibility matters:
+#
+#   pip install -r requirements-lock.txt
+#
+# To regenerate after updating requirements.txt:
+#
+#   pip install -r requirements.txt
+#   pip freeze > requirements-lock.txt
+#
+# Then commit the updated requirements-lock.txt.
+# Last generated against Python 3.11 / cryptography 46.0.5.
+#
+# ── Hashes can be verified with: pip install --require-hashes -r requirements-lock.txt
+# ── To add hashes: pip-compile --generate-hashes requirements.txt (pip-tools)
+#
+cryptography==46.0.5

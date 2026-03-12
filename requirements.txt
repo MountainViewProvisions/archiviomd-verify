@@ -1,0 +1,30 @@
+# archiviomd-verify — Python dependencies
+#
+# Python 3.8 or later is required.
+#
+# All stdlib. No pip packages are required for basic hash and server-side checks.
+#
+# Enhanced offline verification (strongly recommended):
+#
+#   Floor: 41.0.0 (first release with stable Ed25519/ECDSA/RSA API used here)
+#   Ceiling: <47 (guards against future breaking major versions)
+#   Tested against: 41.x, 42.x, 43.x, 44.x, 45.x, 46.x
+#
+#   If a new major version breaks compatibility, raise the ceiling after testing
+#   and update requirements-lock.txt with: pip freeze > requirements-lock.txt
+#
+cryptography>=41.0.0,<47
+#
+# SLH-DSA / FIPS 205 post-quantum offline verification (optional):
+# pyspx>=0.5.0
+#
+# Runtime binaries (not pip-installable — install via your OS package manager):
+#   openssl  — CMS/PKCS#7 and RFC 3161 timestamp verification
+#              Debian/Ubuntu : apt install openssl
+#              macOS         : brew install openssl
+#              Windows       : https://slproweb.com/products/Win32OpenSSL.html
+#
+#   gpg      — OpenPGP (ArchivioID) offline signature verification
+#              Debian/Ubuntu : apt install gnupg
+#              macOS         : brew install gnupg
+#              Windows       : https://gpg4win.org
