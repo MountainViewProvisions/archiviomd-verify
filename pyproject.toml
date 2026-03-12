@@ -1,10 +1,10 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "archiviomd-verify"
-version = "1.0.2"
+version = "1.0.0"
 description = "Standalone verification tool for ArchivioMD and ArchivioID cryptographic post signing"
 readme = "README.md"
 license = { text = "MIT" }
@@ -42,9 +42,9 @@ slhdsa = ["pyspx>=0.5.0"]
 dev = ["build", "twine"]
 
 [project.urls]
-Homepage       = "https://mountainviewprovisions.com/ArchivioMD"
-Repository     = "https://github.com/mountainviewprovisions/archiviomd-verify"
-"Bug Tracker"  = "https://github.com/mountainviewprovisions/archiviomd-verify/issues"
+Homepage      = "https://mountainviewprovisions.com/ArchivioMD"
+Repository    = "https://github.com/MountainViewProvisions/archiviomd-verify"
+"Bug Tracker" = "https://github.com/MountainViewProvisions/archiviomd-verify/issues"
 
 [project.scripts]
 archiviomd-verify = "archiviomd_verify.cli:main"
